@@ -1,0 +1,22 @@
+<script setup lang="ts">
+import { cn } from '@/lib/utils'
+
+interface Props {
+  class?: string
+}
+
+const props = defineProps<Props>()
+
+defineOptions({ inheritAttrs: false })
+</script>
+
+<template>
+  <div class="relative w-full overflow-auto">
+    <table
+      v-bind="$attrs"
+      :class="cn('w-full caption-bottom text-sm', props.class)"
+    >
+      <slot />
+    </table>
+  </div>
+</template>

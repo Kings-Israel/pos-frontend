@@ -1,0 +1,44 @@
+<script setup lang="ts">
+import { cn } from '@/lib/utils'
+import { ScrollAreaRoot, ScrollAreaViewport, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaCorner } from 'radix-vue'
+
+interface Props {
+  class?: string
+  orientation?: 'horizontal' | 'vertical' | 'both'
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  orientation: 'vertical',
+})
+
+defineOptions({ inheritAttrs: false })
+</script>
+
+<template>
+  <ScrollAreaRoot
+    v-bind="$attrs"
+    :class="cn('relative overflow-hidden', props.class)"
+  >
+    <ScrollAreaViewport class="h-full w-full rounded-[inherit]">
+      <slot />
+    </ScrollAreaViewport>
+
+    <ScrollAreaScrollbar
+      v-if="orientation === 'vertical' || orientation === 'both'"
+      orientation="vertical"
+      class="flex touch-none select-none transition-colors h-full w-2.5 border-l border-l-transparent p-px"
+    >
+      <ScrollAreaThumb class="relative flex-1 rounded-full bg-border" />
+    </ScrollAreaScrollbar>
+
+    <ScrollAreaScrollbar
+      v-if="orientation === 'horizontal' || orientation === 'both'"
+      orientation="horizontal"
+      class="flex touch-none select-none transition-colors flex-col h-2.5 border-t border-t-transparent p-px"
+    >
+      <ScrollAreaThumb class="relative flex-1 rounded-full bg-border" />
+    </ScrollAreaScrollbar>
+
+    <ScrollAreaCorner />
+  </ScrollAreaRoot>
+</template>
