@@ -36,8 +36,8 @@ interface DemoAccount {
 }
 
 const demoAccounts: DemoAccount[] = [
-  { label: 'Admin',   email: 'admin@pos.com',   password: 'admin',   variant: 'default' },
-  { label: 'Waiter',  email: 'waiter@pos.com',  password: 'waiter',  variant: 'outline' },
+  { label: 'Admin', email: 'admin@pos.com', password: 'admin', variant: 'default' },
+  { label: 'Waiter', email: 'waiter@pos.com', password: 'waiter', variant: 'outline' },
   { label: 'Kitchen', email: 'kitchen@pos.com', password: 'kitchen', variant: 'outline' },
   { label: 'Cashier', email: 'cashier@pos.com', password: 'cashier', variant: 'outline' },
 ]
@@ -56,7 +56,9 @@ async function loginAs(account: DemoAccount) {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+  <div
+    class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4"
+  >
     <!-- Background decorations -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
@@ -66,11 +68,13 @@ async function loginAs(account: DemoAccount) {
     <div class="relative w-full max-w-md space-y-6">
       <!-- Brand header -->
       <div class="text-center space-y-3">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary shadow-lg shadow-primary/30">
+        <div
+          class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary shadow-lg shadow-primary/30"
+        >
           <UtensilsCrossed class="w-8 h-8 text-primary-foreground" />
         </div>
         <div>
-          <h1 class="text-3xl font-bold text-white">POS System</h1>
+          <h1 class="text-3xl font-bold text-white">Amani Access POS System</h1>
           <p class="text-slate-400 mt-1">Restaurant Point of Sale</p>
         </div>
       </div>
@@ -102,7 +106,9 @@ async function loginAs(account: DemoAccount) {
             <div class="space-y-1.5">
               <Label for="email" class="text-slate-300">Email address</Label>
               <div class="relative">
-                <Mail class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <Mail
+                  class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none"
+                />
                 <Input
                   id="email"
                   v-model="email"
@@ -119,7 +125,9 @@ async function loginAs(account: DemoAccount) {
             <div class="space-y-1.5">
               <Label for="password" class="text-slate-300">Password</Label>
               <div class="relative">
-                <Lock class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <Lock
+                  class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none"
+                />
                 <Input
                   id="password"
                   v-model="password"
