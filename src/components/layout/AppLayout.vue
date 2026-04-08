@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useInventoryStore } from '@/stores/inventory'
 import Avatar from '@/components/ui/avatar.vue'
 import AvatarFallback from '@/components/ui/avatar-fallback.vue'
 import AvatarImage from '@/components/ui/avatar-image.vue'
@@ -15,6 +16,7 @@ import {
   ChefHat,
   BookOpen,
   BarChart3,
+  Package,
   Users,
   Bell,
   LogOut,
@@ -24,23 +26,25 @@ import {
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
+const inventoryStore = useInventoryStore()
 const route = useRoute()
 const router = useRouter()
 
 const sidebarExpanded = ref(true)
 
+const stockAlertCount = computed(() => inventoryStore.alertCount)
+
 const navItems = computed(() => {
   const base = [
-    { name: 'Dashboard',  path: '/dashboard',  icon: LayoutDashboard },
-    { name: 'Tables',     path: '/tables',      icon: Table2 },
-    { name: 'Orders',     path: '/orders',      icon: ShoppingCart },
-    { name: 'Kitchen',    path: '/kitchen',     icon: ChefHat },
-    { name: 'Menu',       path: '/menu',        icon: BookOpen },
-    { name: 'Reports',    path: '/reports',     icon: BarChart3 },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, badge: 0 },
+    { name: 'Tables', path: '/tables', icon: Table2, badge: 0 },
+    { name: 'Orders', path: '/orders', icon: ShoppingCart, badge: 0 },
+    { name: 'Kitchen', path: '/kitchen', icon: ChefHat, badge: 0 },
+    { name: 'Menu', path: '/menu', icon: BookOpen, badge: 0 },
+    { name: 'Inventory', path: '/inventory', icon: Package, badge: stockAlertCount.value },
+    { name: 'Reports', path: '/reports', icon: BarChart3, badge: 0 },
   ]
-  const adminOnly = [
-    { name: 'Users',      path: '/users',       icon: Users },
-  ]
+  const adminOnly = [{ name: 'Users', path: '/users', icon: Users, badge: 0 }]
   const role = authStore.user?.role
   if (role === 'admin' || role === 'manager') {
     return [...base, ...adminOnly]
@@ -93,12 +97,14 @@ async function handleLogout() {
       <!-- Logo / Brand -->
       <div class="flex items-center h-16 px-3 border-b border-border shrink-0">
         <div class="flex items-center gap-3 overflow-hidden">
-          <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground shrink-0">
+          <div
+            class="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground shrink-0"
+          >
             <UtensilsCrossed class="w-4 h-4" />
           </div>
           <Transition name="fade-slide">
             <span v-if="sidebarExpanded" class="font-bold text-sm whitespace-nowrap">
-              POS System
+              Bake & Brew Coffee Shop & Bakery
             </span>
           </Transition>
         </div>
@@ -116,13 +122,39 @@ async function handleLogout() {
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 !sidebarExpanded && 'justify-center',
               ]"
-              :title="!sidebarExpanded ? item.name : undefined"
+              :title="
+                !sidebarExpanded
+                  ? item.badge
+                    ? `${item.name} (${item.badge} alerts)`
+                    : item.name
+                  : undefined
+              "
               @click="router.push(item.path)"
             >
-              <component :is="item.icon" class="w-4 h-4 shrink-0" />
+              <span class="relative shrink-0">
+                <component :is="item.icon" class="w-4 h-4" />
+                <span
+                  v-if="item.badge && !sidebarExpanded"
+                  class="absolute -top-1.5 -right-1.5 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold"
+                  >{{ item.badge > 9 ? '9+' : item.badge }}</span
+                >
+              </span>
               <Transition name="fade-slide">
-                <span v-if="sidebarExpanded" class="whitespace-nowrap truncate">
-                  {{ item.name }}
+                <span
+                  v-if="sidebarExpanded"
+                  class="flex items-center gap-2 whitespace-nowrap truncate flex-1 min-w-0"
+                >
+                  <span class="truncate">{{ item.name }}</span>
+                  <span
+                    v-if="item.badge"
+                    class="ml-auto shrink-0 flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-[10px] font-bold"
+                    :class="
+                      isActive(item.path)
+                        ? 'bg-white/20 text-white'
+                        : 'bg-destructive text-destructive-foreground'
+                    "
+                    >{{ item.badge > 99 ? '99+' : item.badge }}</span
+                  >
                 </span>
               </Transition>
             </button>
@@ -175,7 +207,9 @@ async function handleLogout() {
       :class="sidebarExpanded ? 'ml-60' : 'ml-16'"
     >
       <!-- Top Header -->
-      <header class="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-card border-b border-border shrink-0">
+      <header
+        class="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-card border-b border-border shrink-0"
+      >
         <!-- Toggle button -->
         <button
           class="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors text-muted-foreground"
@@ -187,15 +221,28 @@ async function handleLogout() {
 
         <!-- Greeting (center) -->
         <p class="hidden md:block text-sm text-muted-foreground">
-          {{ greeting }}, <span class="font-semibold text-foreground">{{ authStore.user?.name }}</span>
+          {{ greeting }},
+          <span class="font-semibold text-foreground">{{ authStore.user?.name }}</span>
         </p>
 
         <!-- Right side -->
         <div class="flex items-center gap-3">
           <!-- Notification bell -->
-          <button class="relative flex items-center justify-center w-9 h-9 rounded-md hover:bg-accent transition-colors text-muted-foreground">
+          <button
+            class="relative flex items-center justify-center w-9 h-9 rounded-md hover:bg-accent transition-colors text-muted-foreground"
+            :title="
+              stockAlertCount
+                ? `${stockAlertCount} stock alert${stockAlertCount > 1 ? 's' : ''}`
+                : 'No alerts'
+            "
+            @click="router.push('/inventory')"
+          >
             <Bell class="w-4 h-4" />
-            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
+            <span
+              v-if="stockAlertCount"
+              class="absolute top-1 right-1 flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold leading-none"
+              >{{ stockAlertCount > 9 ? '9+' : stockAlertCount }}</span
+            >
           </button>
 
           <!-- User info -->
@@ -225,7 +272,9 @@ async function handleLogout() {
 <style scoped>
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 .fade-slide-enter-from,
 .fade-slide-leave-to {

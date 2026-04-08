@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useMenuStore } from './menu'
 import { useTablesStore } from './tables'
+import { useInventoryStore } from './inventory'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -232,6 +233,7 @@ const MOCK_ORDERS: Order[] = [
 export const useOrdersStore = defineStore('orders', () => {
   const menuStore = useMenuStore()
   const tablesStore = useTablesStore()
+  const inventoryStore = useInventoryStore()
 
   const orders = ref<Order[]>([])
   const activeOrder = ref<Order | null>(null)
@@ -445,6 +447,13 @@ export const useOrdersStore = defineStore('orders', () => {
   }
 
   async function sendToKitchen(orderId: string): Promise<void> {
+    const order = orders.value.find((o) => o.id === orderId)
+    if (order) {
+      inventoryStore.deductForOrder(
+        orderId,
+        order.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
+      )
+    }
     await updateOrderStatus(orderId, 'sent')
   }
 

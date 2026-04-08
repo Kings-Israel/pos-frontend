@@ -74,7 +74,7 @@ async function loginAs(account: DemoAccount) {
           <UtensilsCrossed class="w-8 h-8 text-primary-foreground" />
         </div>
         <div>
-          <h1 class="text-3xl font-bold text-white">Amani Access POS System</h1>
+          <h1 class="text-3xl font-bold text-white">Bake & Brew Coffee Shop & Bakery</h1>
           <p class="text-slate-400 mt-1">Restaurant Point of Sale</p>
         </div>
       </div>
