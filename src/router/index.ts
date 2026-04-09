@@ -73,7 +73,8 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
-  // Restore session on first load
+  // Restore session from JWT on first navigation only.
+  // checkSession() is a no-op on subsequent calls (guarded by sessionChecked flag).
   await authStore.checkSession()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {

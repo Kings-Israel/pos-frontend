@@ -66,16 +66,14 @@ const displayOrders = computed(() => {
 
 const displayAvgOrder = computed(() => {
   if (selectedRange.value === 'week' && weekly.value)
-    return weekly.value.totalOrders > 0
-      ? weekly.value.totalRevenue / weekly.value.totalOrders
-      : 0
+    return weekly.value.totalOrders > 0 ? weekly.value.totalRevenue / weekly.value.totalOrders : 0
   return sales.value?.averageOrderValue ?? 0
 })
 
 // ── Hourly chart ───────────────────────────────────────────────────────────
 const maxHourlySales = computed(() => {
   if (!reportsStore.hourlyData.length) return 1
-  return Math.max(...reportsStore.hourlyData.map((h) => h.sales))
+  return Math.max(...reportsStore.hourlyData.map((h) => h.revenue))
 })
 
 function barHeight(sales: number): string {
@@ -85,7 +83,7 @@ function barHeight(sales: number): string {
 
 const peakHour = computed(() => {
   if (!reportsStore.hourlyData.length) return '—'
-  const peak = reportsStore.hourlyData.reduce((a, b) => (a.sales > b.sales ? a : b))
+  const peak = reportsStore.hourlyData.reduce((a, b) => (a.revenue > b.revenue ? a : b))
   return peak.hour
 })
 
@@ -105,29 +103,15 @@ function serverRatingPct(totalSales: number): number {
   return Math.round((totalSales / maxServerSales.value) * 100)
 }
 
-// ── Recent transactions (mock) ─────────────────────────────────────────────
-interface TxRow {
-  id: string
-  table: string
-  items: number
-  total: number
-  method: string
-  time: string
+// ── Recent transactions ────────────────────────────────────────────────────
+const methodColor: Record<string, string> = {
+  card:    'bg-blue-100 text-blue-700',
+  cash:    'bg-green-100 text-green-700',
+  digital: 'bg-purple-100 text-purple-700',
 }
 
-const recentTransactions: TxRow[] = [
-  { id: 'TXN-4821', table: 'Table 3', items: 4, total: 87.5, method: 'Card', time: '21:34' },
-  { id: 'TXN-4820', table: 'Table 7', items: 2, total: 46.0, method: 'Cash', time: '21:11' },
-  { id: 'TXN-4819', table: 'Takeaway', items: 1, total: 18.0, method: 'Digital', time: '20:58' },
-  { id: 'TXN-4818', table: 'Table 1', items: 6, total: 134.5, method: 'Card', time: '20:43' },
-  { id: 'TXN-4817', table: 'Table 9', items: 3, total: 62.25, method: 'Card', time: '20:29' },
-  { id: 'TXN-4816', table: 'Table 2', items: 2, total: 39.0, method: 'Digital', time: '20:05' },
-]
-
-const methodColor: Record<string, string> = {
-  Card: 'bg-blue-100 text-blue-700',
-  Cash: 'bg-green-100 text-green-700',
-  Digital: 'bg-purple-100 text-purple-700',
+function formatTxTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
@@ -137,7 +121,9 @@ const methodColor: Record<string, string> = {
     <div class="flex items-center justify-between flex-wrap gap-3">
       <div>
         <h1 class="text-2xl font-bold">Reports & Analytics</h1>
-        <p class="text-sm text-muted-foreground mt-0.5">{{ rangeLabels[selectedRange] }} overview</p>
+        <p class="text-sm text-muted-foreground mt-0.5">
+          {{ rangeLabels[selectedRange] }} overview
+        </p>
       </div>
 
       <Tabs :model-value="selectedRange" @update:model-value="selectedRange = $event as RangeKey">
@@ -168,7 +154,14 @@ const methodColor: Record<string, string> = {
               <DollarSign class="w-5 h-5 text-green-600" />
             </div>
           </div>
-          <p class="text-2xl font-bold">${{ displayRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</p>
+          <p class="text-2xl font-bold">
+            ${{
+              displayRevenue.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            }}
+          </p>
           <p class="text-xs text-green-600 flex items-center gap-0.5 mt-1">
             <ArrowUpRight class="w-3 h-3" /> +12% vs yesterday
           </p>
@@ -242,7 +235,7 @@ const methodColor: Record<string, string> = {
               class="absolute -top-2 left-1/2 -translate-x-1/2 bg-popover border border-border rounded-md px-2 py-1 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none shadow-md"
             >
               <p class="font-semibold">{{ point.hour }}</p>
-              <p>${{ point.sales.toFixed(0) }}</p>
+              <p>${{ point.revenue.toFixed(0) }}</p>
               <p>{{ point.orders }} orders</p>
             </div>
 
@@ -250,12 +243,12 @@ const methodColor: Record<string, string> = {
             <div class="w-full flex items-end" style="height: 160px">
               <div
                 class="w-full rounded-t-sm bg-primary/80 hover:bg-primary transition-colors cursor-default"
-                :style="{ height: barHeight(point.sales) }"
+                :style="{ height: barHeight(point.revenue) }"
               />
             </div>
 
             <!-- Hour label -->
-            <span class="text-[10px] text-muted-foreground">{{ point.hour.slice(0, 2) }}</span>
+            <span class="text-[10px] text-muted-foreground">{{ point.hour }}</span>
           </div>
         </div>
       </CardContent>
@@ -278,7 +271,9 @@ const methodColor: Record<string, string> = {
           >
             <div class="flex items-center justify-between text-sm">
               <div class="flex items-center gap-2">
-                <span class="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                <span
+                  class="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center"
+                >
                   {{ item.rank }}
                 </span>
                 <span class="font-medium">{{ item.name }}</span>
@@ -326,12 +321,11 @@ const methodColor: Record<string, string> = {
                   <td class="py-2.5 font-medium">{{ server.name }}</td>
                   <td class="py-2.5 text-right">{{ server.ordersServed }}</td>
                   <td class="py-2.5 text-right">${{ server.averageOrderValue.toFixed(2) }}</td>
-                  <td class="py-2.5 text-right text-green-600">${{ server.tipsEarned.toFixed(0) }}</td>
+                  <td class="py-2.5 text-right text-green-600">
+                    ${{ server.tipsEarned.toFixed(0) }}
+                  </td>
                   <td class="py-2.5 pl-4 w-24">
-                    <Progress
-                      :model-value="serverRatingPct(server.totalSales)"
-                      class="h-2"
-                    />
+                    <Progress :model-value="serverRatingPct(server.totalSales)" class="h-2" />
                   </td>
                 </tr>
               </tbody>
@@ -364,20 +358,33 @@ const methodColor: Record<string, string> = {
             </thead>
             <tbody class="divide-y divide-border">
               <tr
-                v-for="tx in recentTransactions"
+                v-if="reportsStore.recentTransactions.length === 0"
+                class="text-center"
+              >
+                <td colspan="6" class="py-8 text-muted-foreground text-sm">No transactions yet</td>
+              </tr>
+              <tr
+                v-for="tx in reportsStore.recentTransactions"
                 :key="tx.id"
                 class="hover:bg-muted/30 transition-colors"
               >
                 <td class="py-2.5 font-mono text-xs text-muted-foreground">{{ tx.id }}</td>
-                <td class="py-2.5 font-medium">{{ tx.table }}</td>
-                <td class="py-2.5 text-right text-muted-foreground">{{ tx.items }}</td>
+                <td class="py-2.5 font-medium">{{ tx.tableName }}</td>
+                <td class="py-2.5 text-right text-muted-foreground">{{ tx.itemCount }}</td>
                 <td class="py-2.5 text-right font-semibold">${{ tx.total.toFixed(2) }}</td>
                 <td class="py-2.5 pl-4">
-                  <span :class="cn('text-xs font-medium px-2 py-0.5 rounded-full', methodColor[tx.method] ?? 'bg-gray-100 text-gray-700')">
-                    {{ tx.method }}
+                  <span
+                    :class="cn(
+                      'text-xs font-medium px-2 py-0.5 rounded-full',
+                      methodColor[tx.method] ?? 'bg-gray-100 text-gray-700',
+                    )"
+                  >
+                    {{ tx.method.charAt(0).toUpperCase() + tx.method.slice(1) }}
                   </span>
                 </td>
-                <td class="py-2.5 text-right text-muted-foreground font-mono text-xs">{{ tx.time }}</td>
+                <td class="py-2.5 text-right text-muted-foreground font-mono text-xs">
+                  {{ formatTxTime(tx.processedAt) }}
+                </td>
               </tr>
             </tbody>
           </table>

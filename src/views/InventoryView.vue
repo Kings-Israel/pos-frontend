@@ -67,9 +67,7 @@ const filteredItems = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        (i.supplier ?? '').toLowerCase().includes(q),
+      (i) => i.name.toLowerCase().includes(q) || (i.supplier ?? '').toLowerCase().includes(q),
     )
   }
 
@@ -78,9 +76,7 @@ const filteredItems = computed(() => {
   }
 
   if (statusFilter.value !== 'all') {
-    list = list.filter(
-      (i) => inventoryStore.stockStatus(i) === statusFilter.value,
-    )
+    list = list.filter((i) => inventoryStore.stockStatus(i) === statusFilter.value)
   }
 
   return list
@@ -103,7 +99,9 @@ function stockBarColor(item: InventoryItem): string {
 
 // ── Badge helpers ─────────────────────────────────────────────────────────────
 
-function statusBadgeVariant(status: StockStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
+function statusBadgeVariant(
+  status: StockStatus,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
   if (status === 'ok') return 'secondary'
   if (status === 'low') return 'outline'
   if (status === 'critical') return 'destructive'
@@ -223,9 +221,7 @@ const historyItem = ref<InventoryItem | null>(null)
 
 const historyMovements = computed(() => {
   if (!historyItem.value) return []
-  return inventoryStore.movements.filter(
-    (m) => m.inventoryItemId === historyItem.value!.id,
-  )
+  return inventoryStore.movements.filter((m) => m.inventoryItemId === historyItem.value!.id)
 })
 
 function openHistory(item: InventoryItem) {
@@ -306,9 +302,7 @@ const recentMovements = computed(() =>
           <Boxes class="w-6 h-6 text-primary" />
           Inventory Management
         </h1>
-        <p class="text-sm text-muted-foreground mt-0.5">
-          Track stock levels, movements and alerts
-        </p>
+        <p class="text-sm text-muted-foreground mt-0.5">Track stock levels, movements and alerts</p>
       </div>
       <Button @click="openAddItem">
         <PackagePlus class="w-4 h-4" />
@@ -380,7 +374,13 @@ const recentMovements = computed(() =>
             </div>
           </div>
           <p class="text-2xl font-bold">
-            ${{ inventoryStore.totalInventoryValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+            KES
+            {{
+              inventoryStore.totalInventoryValue.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            }}
           </p>
           <p class="text-xs text-muted-foreground mt-1">Current inventory cost</p>
         </CardContent>
@@ -406,15 +406,14 @@ const recentMovements = computed(() =>
       <!-- Search -->
       <div class="relative flex-1 min-w-48">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          v-model="searchQuery"
-          placeholder="Search items or supplier..."
-          class="pl-9"
-        />
+        <Input v-model="searchQuery" placeholder="Search items or supplier..." class="pl-9" />
       </div>
 
       <!-- Category filter -->
-      <Tabs :model-value="categoryFilter" @update:model-value="categoryFilter = $event as typeof categoryFilter">
+      <Tabs
+        :model-value="categoryFilter"
+        @update:model-value="categoryFilter = $event as typeof categoryFilter"
+      >
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="ingredient">Ingredient</TabsTrigger>
@@ -425,7 +424,10 @@ const recentMovements = computed(() =>
       </Tabs>
 
       <!-- Status filter -->
-      <Select :model-value="statusFilter" @update:model-value="statusFilter = $event as typeof statusFilter">
+      <Select
+        :model-value="statusFilter"
+        @update:model-value="statusFilter = $event as typeof statusFilter"
+      >
         <SelectTrigger class="w-40">
           <SelectValue placeholder="All statuses" />
         </SelectTrigger>
@@ -508,7 +510,10 @@ const recentMovements = computed(() =>
                     :class="statusBadgeClass(inventoryStore.stockStatus(item))"
                   >
                     <AlertTriangle
-                      v-if="inventoryStore.stockStatus(item) === 'low' || inventoryStore.stockStatus(item) === 'critical'"
+                      v-if="
+                        inventoryStore.stockStatus(item) === 'low' ||
+                        inventoryStore.stockStatus(item) === 'critical'
+                      "
                       class="w-3 h-3"
                     />
                     {{ statusLabel(inventoryStore.stockStatus(item)) }}
@@ -522,7 +527,7 @@ const recentMovements = computed(() =>
 
                 <!-- Cost / Unit -->
                 <TableCell class="text-right text-sm font-medium">
-                  ${{ item.costPerUnit.toFixed(2) }}
+                  KES {{ new Intl.NumberFormat().format(item.costPerUnit) }}
                 </TableCell>
 
                 <!-- Supplier -->
@@ -676,7 +681,9 @@ const recentMovements = computed(() =>
 
       <div class="space-y-4 py-2" v-if="restockItem">
         <!-- Current stock display -->
-        <div class="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
+        <div
+          class="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3"
+        >
           <div>
             <p class="text-xs text-muted-foreground">Current Stock</p>
             <p class="text-xl font-bold">
@@ -703,7 +710,8 @@ const recentMovements = computed(() =>
             placeholder="0"
           />
           <p class="text-xs text-muted-foreground">
-            Space available: {{ (restockItem.maxStock - restockItem.currentStock).toFixed(2) }} {{ restockItem.unit }}
+            Space available: {{ (restockItem.maxStock - restockItem.currentStock).toFixed(2) }}
+            {{ restockItem.unit }}
           </p>
         </div>
 
@@ -742,14 +750,14 @@ const recentMovements = computed(() =>
           <Edit3 class="w-5 h-5 text-blue-600" />
           Adjust Stock — {{ adjustItem?.name }}
         </DialogTitle>
-        <DialogDescription>
-          Record a stock adjustment or waste event.
-        </DialogDescription>
+        <DialogDescription> Record a stock adjustment or waste event. </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4 py-2" v-if="adjustItem">
         <!-- Current stock display -->
-        <div class="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
+        <div
+          class="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3"
+        >
           <div>
             <p class="text-xs text-muted-foreground">Current Stock</p>
             <p class="text-xl font-bold">
@@ -768,7 +776,10 @@ const recentMovements = computed(() =>
         <!-- Type -->
         <div class="space-y-2">
           <Label>Adjustment Type</Label>
-          <Select :model-value="adjustType" @update:model-value="adjustType = $event as typeof adjustType">
+          <Select
+            :model-value="adjustType"
+            @update:model-value="adjustType = $event as typeof adjustType"
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
@@ -801,17 +812,17 @@ const recentMovements = computed(() =>
             >
               <Plus class="w-3.5 h-3.5" />
             </Button>
-            <Input
-              v-model.number="adjustQty"
-              type="number"
-              :min="0"
-              step="0.1"
-              placeholder="0"
-            />
+            <Input v-model.number="adjustQty" type="number" :min="0" step="0.1" placeholder="0" />
           </div>
           <p class="text-xs text-muted-foreground">
             Result:
-            <strong>{{ Math.max(adjustItem.currentStock + (adjustNegative ? -Math.abs(adjustQty) : Math.abs(adjustQty)), 0).toFixed(2) }}</strong>
+            <strong>{{
+              Math.max(
+                adjustItem.currentStock +
+                  (adjustNegative ? -Math.abs(adjustQty) : Math.abs(adjustQty)),
+                0,
+              ).toFixed(2)
+            }}</strong>
             {{ adjustItem.unit }}
           </p>
         </div>
@@ -853,13 +864,14 @@ const recentMovements = computed(() =>
           <History class="w-5 h-5" />
           Stock History — {{ historyItem?.name }}
         </DialogTitle>
-        <DialogDescription>
-          Full movement log for this inventory item.
-        </DialogDescription>
+        <DialogDescription> Full movement log for this inventory item. </DialogDescription>
       </DialogHeader>
 
       <div class="max-h-96 overflow-y-auto -mx-6 px-6">
-        <div v-if="historyMovements.length === 0" class="text-center py-10 text-muted-foreground text-sm">
+        <div
+          v-if="historyMovements.length === 0"
+          class="text-center py-10 text-muted-foreground text-sm"
+        >
           No movements recorded for this item.
         </div>
         <Table v-else>
@@ -894,7 +906,9 @@ const recentMovements = computed(() =>
               </TableCell>
               <TableCell class="text-sm text-muted-foreground max-w-48 truncate">
                 {{ mov.reason }}
-                <span v-if="mov.orderId" class="ml-1 text-xs font-mono opacity-60">({{ mov.orderId }})</span>
+                <span v-if="mov.orderId" class="ml-1 text-xs font-mono opacity-60"
+                  >({{ mov.orderId }})</span
+                >
               </TableCell>
               <TableCell class="text-xs text-muted-foreground whitespace-nowrap">
                 {{ formatDate(mov.timestamp) }}
@@ -923,9 +937,7 @@ const recentMovements = computed(() =>
           <PackagePlus class="w-5 h-5 text-primary" />
           Add Inventory Item
         </DialogTitle>
-        <DialogDescription>
-          Create a new inventory item to track in the system.
-        </DialogDescription>
+        <DialogDescription> Create a new inventory item to track in the system. </DialogDescription>
       </DialogHeader>
 
       <div class="grid grid-cols-2 gap-4 py-2">
@@ -938,7 +950,10 @@ const recentMovements = computed(() =>
         <!-- Category -->
         <div class="space-y-2">
           <Label>Category</Label>
-          <Select :model-value="addForm.category" @update:model-value="addForm.category = $event as InventoryItem['category']">
+          <Select
+            :model-value="addForm.category"
+            @update:model-value="addForm.category = $event as InventoryItem['category']"
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
@@ -971,31 +986,63 @@ const recentMovements = computed(() =>
         <!-- Current Stock -->
         <div class="space-y-2">
           <Label for="add-current">Current Stock</Label>
-          <Input id="add-current" v-model.number="addForm.currentStock" type="number" min="0" step="0.1" placeholder="0" />
+          <Input
+            id="add-current"
+            v-model.number="addForm.currentStock"
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="0"
+          />
         </div>
 
         <!-- Min Stock -->
         <div class="space-y-2">
           <Label for="add-min">Min Stock (alert threshold)</Label>
-          <Input id="add-min" v-model.number="addForm.minStock" type="number" min="0" step="0.1" placeholder="0" />
+          <Input
+            id="add-min"
+            v-model.number="addForm.minStock"
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="0"
+          />
         </div>
 
         <!-- Max Stock -->
         <div class="space-y-2">
           <Label for="add-max">Max Stock (capacity) <span class="text-destructive">*</span></Label>
-          <Input id="add-max" v-model.number="addForm.maxStock" type="number" min="1" step="0.1" placeholder="0" />
+          <Input
+            id="add-max"
+            v-model.number="addForm.maxStock"
+            type="number"
+            min="1"
+            step="0.1"
+            placeholder="0"
+          />
         </div>
 
         <!-- Cost per Unit -->
         <div class="space-y-2">
           <Label for="add-cost">Cost per Unit ($)</Label>
-          <Input id="add-cost" v-model.number="addForm.costPerUnit" type="number" min="0" step="0.01" placeholder="0.00" />
+          <Input
+            id="add-cost"
+            v-model.number="addForm.costPerUnit"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+          />
         </div>
 
         <!-- Supplier -->
         <div class="col-span-2 space-y-2">
           <Label for="add-supplier">Supplier (optional)</Label>
-          <Input id="add-supplier" v-model="addForm.supplier" placeholder="e.g. Fresh Produce Direct" />
+          <Input
+            id="add-supplier"
+            v-model="addForm.supplier"
+            placeholder="e.g. Fresh Produce Direct"
+          />
         </div>
       </div>
 

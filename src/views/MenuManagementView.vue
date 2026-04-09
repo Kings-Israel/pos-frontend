@@ -40,9 +40,10 @@ const selectedCategoryId = ref<string | 'all'>('all')
 const searchQuery = ref('')
 
 const filteredItems = computed(() => {
-  let list = selectedCategoryId.value === 'all'
-    ? menuStore.items
-    : menuStore.items.filter((i) => i.categoryId === selectedCategoryId.value)
+  let list =
+    selectedCategoryId.value === 'all'
+      ? menuStore.items
+      : menuStore.items.filter((i) => i.category_id === selectedCategoryId.value)
 
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
@@ -54,7 +55,7 @@ const filteredItems = computed(() => {
 })
 
 function categoryForItem(item: MenuItem): Category | undefined {
-  return menuStore.categories.find((c) => c.id === item.categoryId)
+  return menuStore.categories.find((c) => c.id === item.category_id)
 }
 
 // ── Edit dialog ────────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ function openEdit(item: MenuItem) {
     name: item.name,
     description: item.description,
     price: String(item.price),
-    categoryId: item.categoryId,
+    categoryId: item.category_id,
     available: item.available,
   }
   dialogOpen.value = true
@@ -98,9 +99,10 @@ function openEdit(item: MenuItem) {
 function openAdd() {
   isAdding.value = true
   editForm.value = emptyForm()
-  editForm.value.categoryId = selectedCategoryId.value !== 'all'
-    ? selectedCategoryId.value
-    : menuStore.categories[0]?.id ?? ''
+  editForm.value.categoryId =
+    selectedCategoryId.value !== 'all'
+      ? selectedCategoryId.value
+      : (menuStore.categories[0]?.id ?? '')
   dialogOpen.value = true
 }
 
@@ -115,6 +117,14 @@ async function saveDialog() {
         name: editForm.value.name,
         description: editForm.value.description,
         price,
+        available: editForm.value.available,
+      })
+    } else {
+      await menuStore.storeItem({
+        name: editForm.value.name,
+        description: editForm.value.description,
+        price,
+        categoryId: editForm.value.categoryId,
         available: editForm.value.available,
       })
     }
@@ -139,8 +149,17 @@ function openAddCategory() {
 }
 
 function saveCategory() {
-  // In a real app: call store action. Here just close.
-  catDialogOpen.value = false
+  if (!newCatName.value.trim()) return
+  try {
+    menuStore.createCategory({
+      name: newCatName.value.trim(),
+      color: newCatColor.value,
+      icon: newCatIcon.value.trim() || '🍴',
+    })
+    catDialogOpen.value = false
+  } catch (error) {
+    console.error('Failed to create category:', error)
+  }
 }
 </script>
 
@@ -149,7 +168,9 @@ function saveCategory() {
     <!-- ── Left: category sidebar ──────────────────────────────────────── -->
     <aside class="w-56 shrink-0 border-r border-border bg-muted/30 flex flex-col">
       <div class="p-4 border-b border-border">
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Categories</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+          Categories
+        </p>
         <Button size="sm" class="w-full gap-2" @click="openAddCategory">
           <Plus class="w-4 h-4" />
           Add Category
@@ -159,12 +180,14 @@ function saveCategory() {
       <nav class="flex-1 overflow-y-auto p-2 space-y-1">
         <!-- All -->
         <button
-          :class="cn(
-            'w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-            selectedCategoryId === 'all'
-              ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground',
-          )"
+          :class="
+            cn(
+              'w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+              selectedCategoryId === 'all'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground',
+            )
+          "
           @click="selectedCategoryId = 'all'"
         >
           <UtensilsCrossed class="w-4 h-4 shrink-0" />
@@ -175,18 +198,20 @@ function saveCategory() {
         <button
           v-for="cat in menuStore.categories"
           :key="cat.id"
-          :class="cn(
-            'w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-            selectedCategoryId === cat.id
-              ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground',
-          )"
+          :class="
+            cn(
+              'w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+              selectedCategoryId === cat.id
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-accent hover:text-accent-foreground text-muted-foreground',
+            )
+          "
           @click="selectedCategoryId = cat.id"
         >
           <span class="text-base leading-none">{{ cat.icon }}</span>
           <span class="truncate">{{ cat.name }}</span>
           <span class="ml-auto text-xs opacity-70">
-            {{ menuStore.items.filter((i) => i.categoryId === cat.id).length }}
+            {{ menuStore.items.filter((i) => i.category_id === cat.id).length }}
           </span>
         </button>
       </nav>
@@ -198,18 +223,11 @@ function saveCategory() {
       <div class="px-6 py-4 border-b border-border flex items-center gap-4">
         <div class="relative flex-1 max-w-sm">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            v-model="searchQuery"
-            placeholder="Search items…"
-            class="pl-9"
-          />
+          <Input v-model="searchQuery" placeholder="Search items…" class="pl-9" />
         </div>
 
         <div class="ml-auto flex items-center gap-2">
-          <Loader2
-            v-if="menuStore.loading"
-            class="w-5 h-5 animate-spin text-muted-foreground"
-          />
+          <Loader2 v-if="menuStore.loading" class="w-5 h-5 animate-spin text-muted-foreground" />
           <Button @click="openAdd">
             <Plus class="w-4 h-4" />
             Add Item
@@ -227,15 +245,8 @@ function saveCategory() {
           <p class="text-sm">No items found</p>
         </div>
 
-        <div
-          v-else
-          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
-        >
-          <Card
-            v-for="item in filteredItems"
-            :key="item.id"
-            class="flex flex-col overflow-hidden"
-          >
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          <Card v-for="item in filteredItems" :key="item.id" class="flex flex-col overflow-hidden">
             <!-- Image placeholder -->
             <div
               class="h-32 bg-muted flex items-center justify-center shrink-0"
@@ -248,21 +259,22 @@ function saveCategory() {
               <div class="flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
                   <p class="font-semibold text-sm leading-tight truncate">{{ item.name }}</p>
-                  <p class="text-xs text-muted-foreground mt-0.5 line-clamp-2">{{ item.description }}</p>
+                  <p class="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                    {{ item.description }}
+                  </p>
                 </div>
               </div>
 
               <div class="flex items-center gap-2 mt-auto pt-2">
                 <!-- Price -->
-                <span class="font-bold text-base text-primary">${{ item.price.toFixed(2) }}</span>
+                <span class="font-bold text-base text-primary"
+                  >KES {{ new Intl.NumberFormat().format(item.price) }}</span
+                >
 
                 <!-- Category pill -->
-                <Badge
-                  variant="outline"
-                  class="text-xs flex items-center gap-1 ml-1"
-                >
+                <Badge variant="outline" class="text-xs flex items-center gap-1 ml-1">
                   <Tag class="w-3 h-3" />
-                  {{ categoryForItem(item)?.name ?? 'Unknown' }}
+                  {{ item.category_name ?? 'Unknown' }}
                 </Badge>
               </div>
 
@@ -273,20 +285,12 @@ function saveCategory() {
                   :class="item.available ? 'text-green-600' : 'text-muted-foreground'"
                   @click="menuStore.toggleAvailability(item.id)"
                 >
-                  <component
-                    :is="item.available ? ToggleRight : ToggleLeft"
-                    class="w-5 h-5"
-                  />
+                  <component :is="item.available ? ToggleRight : ToggleLeft" class="w-5 h-5" />
                   {{ item.available ? 'Available' : 'Unavailable' }}
                 </button>
 
                 <!-- Edit button -->
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8"
-                  @click="openEdit(item)"
-                >
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click="openEdit(item)">
                   <Pencil class="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -316,22 +320,28 @@ function saveCategory() {
 
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <Label>Price ($)</Label>
-              <Input v-model="editForm.price" type="number" min="0" step="0.01" placeholder="0.00" />
+              <Label>Price (KES)</Label>
+              <Input
+                v-model="editForm.price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
             </div>
 
             <div class="space-y-1.5">
               <Label>Category</Label>
-              <Select :model-value="editForm.categoryId" @update:model-value="editForm.categoryId = $event">
+
+              <Select
+                :model-value="editForm.categoryId"
+                @update:model-value="editForm.categoryId = $event"
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select…" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    v-for="cat in menuStore.categories"
-                    :key="cat.id"
-                    :value="cat.id"
-                  >
+                <SelectContent class="pointer-events-auto">
+                  <SelectItem v-for="cat in menuStore.categories" :key="cat.id" :value="cat.id">
                     {{ cat.icon }} {{ cat.name }}
                   </SelectItem>
                 </SelectContent>
@@ -345,10 +355,7 @@ function saveCategory() {
               :class="editForm.available ? 'text-green-600' : 'text-muted-foreground'"
               @click="editForm.available = !editForm.available"
             >
-              <component
-                :is="editForm.available ? ToggleRight : ToggleLeft"
-                class="w-6 h-6"
-              />
+              <component :is="editForm.available ? ToggleRight : ToggleLeft" class="w-6 h-6" />
               {{ editForm.available ? 'Available' : 'Unavailable' }}
             </button>
           </div>

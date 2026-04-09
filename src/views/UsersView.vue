@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Card from '@/components/ui/card.vue'
 import CardContent from '@/components/ui/card-content.vue'
 import Badge from '@/components/ui/badge.vue'
@@ -31,121 +31,65 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  Loader2,
 } from 'lucide-vue-next'
+import { useUsersStore } from '@/stores/users'
+import type { AppUser } from '@/stores/users'
+import type { UserRole } from '@/stores/auth'
 
-// ── Types ──────────────────────────────────────────────────────────────────
-type UserRole = 'admin' | 'manager' | 'waiter' | 'kitchen' | 'cashier'
-type UserStatus = 'active' | 'inactive'
-
-interface AppUser {
-  id: string
-  name: string
-  email: string
-  role: UserRole
-  status: UserStatus
-  lastLogin: string
-  initials: string
-}
+// ── Store ──────────────────────────────────────────────────────────────────
+const store = useUsersStore()
+onMounted(() => store.fetchUsers())
 
 // ── Role helpers ───────────────────────────────────────────────────────────
 const roleBadgeClass: Record<UserRole, string> = {
-  admin: 'bg-purple-100 text-purple-700 border-purple-200',
+  admin:   'bg-purple-100 text-purple-700 border-purple-200',
   manager: 'bg-blue-100 text-blue-700 border-blue-200',
-  waiter: 'bg-green-100 text-green-700 border-green-200',
+  waiter:  'bg-green-100 text-green-700 border-green-200',
   kitchen: 'bg-orange-100 text-orange-700 border-orange-200',
   cashier: 'bg-teal-100 text-teal-700 border-teal-200',
 }
 
 const roleLabels: Record<UserRole, string> = {
-  admin: 'Admin',
+  admin:   'Admin',
   manager: 'Manager',
-  waiter: 'Waiter',
+  waiter:  'Waiter',
   kitchen: 'Kitchen',
   cashier: 'Cashier',
 }
 
-// ── Mock users ─────────────────────────────────────────────────────────────
-const users = ref<AppUser[]>([
-  {
-    id: 'usr-001',
-    name: 'Alex Admin',
-    email: 'alex@restaurant.com',
-    role: 'admin',
-    status: 'active',
-    lastLogin: '2026-04-07 09:14',
-    initials: 'AA',
-  },
-  {
-    id: 'usr-002',
-    name: 'Jane Waiter',
-    email: 'jane@restaurant.com',
-    role: 'waiter',
-    status: 'active',
-    lastLogin: '2026-04-07 10:02',
-    initials: 'JW',
-  },
-  {
-    id: 'usr-003',
-    name: 'Mike Floor',
-    email: 'mike@restaurant.com',
-    role: 'manager',
-    status: 'active',
-    lastLogin: '2026-04-06 22:48',
-    initials: 'MF',
-  },
-  {
-    id: 'usr-004',
-    name: 'Alice Cashier',
-    email: 'alice@restaurant.com',
-    role: 'cashier',
-    status: 'active',
-    lastLogin: '2026-04-07 08:55',
-    initials: 'AC',
-  },
-  {
-    id: 'usr-005',
-    name: 'Carlos Kitchen',
-    email: 'carlos@restaurant.com',
-    role: 'kitchen',
-    status: 'active',
-    lastLogin: '2026-04-07 11:30',
-    initials: 'CK',
-  },
-  {
-    id: 'usr-006',
-    name: 'Sofia Manager',
-    email: 'sofia@restaurant.com',
-    role: 'manager',
-    status: 'inactive',
-    lastLogin: '2026-03-28 14:10',
-    initials: 'SM',
-  },
-  {
-    id: 'usr-007',
-    name: 'Tom Waiter',
-    email: 'tom@restaurant.com',
-    role: 'waiter',
-    status: 'inactive',
-    lastLogin: '2026-04-01 19:20',
-    initials: 'TW',
-  },
-])
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+function formatLastLogin(iso?: string): string {
+  if (!iso) return 'Never'
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
 
 // ── Filters ────────────────────────────────────────────────────────────────
-const roleFilter = ref<UserRole | 'all'>('all')
+const roleFilter  = ref<UserRole | 'all'>('all')
 const searchQuery = ref('')
 
+function setRoleFilter(v: unknown)  { roleFilter.value  = v as UserRole | 'all' }
+function setFormRole(v: unknown)    { form.value.role   = v as UserRole }
+
 const filteredUsers = computed(() => {
-  let list = users.value
+  let list = store.users
   if (roleFilter.value !== 'all') {
     list = list.filter((u) => u.role === roleFilter.value)
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(
-      (u) =>
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q),
+      (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
     )
   }
   return list
@@ -153,7 +97,8 @@ const filteredUsers = computed(() => {
 
 // ── Add / Edit dialog ─────────────────────────────────────────────────────
 const dialogOpen = ref(false)
-const isAdding = ref(false)
+const isAdding   = ref(false)
+const saving     = ref(false)
 
 interface UserForm {
   id: string
@@ -161,92 +106,75 @@ interface UserForm {
   email: string
   role: UserRole
   password: string
-  status: UserStatus
+  active: boolean
 }
 
 const emptyForm = (): UserForm => ({
-  id: '',
-  name: '',
-  email: '',
-  role: 'waiter',
-  password: '',
-  status: 'active',
+  id: '', name: '', email: '', role: 'waiter', password: '', active: true,
 })
 
 const form = ref<UserForm>(emptyForm())
 
 function openAdd() {
   isAdding.value = true
-  form.value = emptyForm()
+  form.value     = emptyForm()
   dialogOpen.value = true
 }
 
 function openEdit(user: AppUser) {
   isAdding.value = false
-  form.value = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
+  form.value     = {
+    id:       user.id,
+    name:     user.name,
+    email:    user.email,
+    role:     user.role,
     password: '',
-    status: user.status,
+    active:   user.active,
   }
   dialogOpen.value = true
 }
 
-function saveUser() {
-  if (isAdding.value) {
-    const initials = form.value.name
-      .split(' ')
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('')
-
-    users.value.push({
-      id: `usr-${Date.now()}`,
-      name: form.value.name,
-      email: form.value.email,
-      role: form.value.role,
-      status: form.value.status,
-      lastLogin: 'Never',
-      initials,
-    })
-  } else {
-    const idx = users.value.findIndex((u) => u.id === form.value.id)
-    if (idx !== -1) {
-      users.value[idx] = {
-        ...users.value[idx]!,
-        name: form.value.name,
-        email: form.value.email,
-        role: form.value.role,
-        status: form.value.status,
-      }
+async function saveUser() {
+  saving.value = true
+  try {
+    if (isAdding.value) {
+      await store.createUser({
+        name:     form.value.name,
+        email:    form.value.email,
+        password: form.value.password,
+        role:     form.value.role,
+      })
+    } else {
+      await store.updateUser(form.value.id, {
+        name:   form.value.name,
+        email:  form.value.email,
+        role:   form.value.role,
+        active: form.value.active,
+      })
     }
+    dialogOpen.value = false
+  } finally {
+    saving.value = false
   }
-  dialogOpen.value = false
 }
 
-function deleteUser(id: string) {
-  users.value = users.value.filter((u) => u.id !== id)
-}
-
-function toggleStatus(user: AppUser) {
-  user.status = user.status === 'active' ? 'inactive' : 'active'
+async function deleteUser(id: string) {
+  await store.deleteUser(id)
 }
 
 // ── Role tab counts ────────────────────────────────────────────────────────
 const allRoles: Array<{ value: UserRole | 'all'; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'all',     label: 'All'     },
+  { value: 'admin',   label: 'Admin'   },
   { value: 'manager', label: 'Manager' },
-  { value: 'waiter', label: 'Waiter' },
+  { value: 'waiter',  label: 'Waiter'  },
   { value: 'kitchen', label: 'Kitchen' },
   { value: 'cashier', label: 'Cashier' },
 ]
 
 function countForRole(role: UserRole | 'all'): number {
-  if (role === 'all') return users.value.length
-  return users.value.filter((u) => u.role === role).length
+  if (role === 'all') return store.users.length
+  return store.users.filter((u) => u.role === role).length
 }
 </script>
 
@@ -259,7 +187,7 @@ function countForRole(role: UserRole | 'all'): number {
           <UserCircle2 class="w-7 h-7 text-primary" />
           User Management
         </h1>
-        <p class="text-sm text-muted-foreground mt-0.5">{{ users.length }} total users</p>
+        <p class="text-sm text-muted-foreground mt-0.5">{{ store.users.length }} total users</p>
       </div>
       <Button @click="openAdd">
         <Plus class="w-4 h-4" />
@@ -267,133 +195,136 @@ function countForRole(role: UserRole | 'all'): number {
       </Button>
     </div>
 
-    <!-- Role filter tabs + search -->
-    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-      <Tabs
-        :model-value="roleFilter"
-        @update:model-value="roleFilter = $event as UserRole | 'all'"
-        class="flex-1"
-      >
-        <TabsList class="flex-wrap h-auto gap-1">
-          <TabsTrigger
-            v-for="tab in allRoles"
-            :key="tab.value"
-            :value="tab.value"
-            class="gap-1.5"
-          >
-            {{ tab.label }}
-            <span class="text-xs opacity-60">({{ countForRole(tab.value) }})</span>
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      <div class="relative w-full sm:w-64">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input v-model="searchQuery" placeholder="Search users…" class="pl-9" />
-      </div>
+    <!-- Error banner -->
+    <div
+      v-if="store.error"
+      class="rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm px-4 py-3"
+    >
+      {{ store.error }}
     </div>
 
-    <!-- Users table -->
-    <Card>
-      <CardContent class="p-0">
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-border bg-muted/40">
-                <th class="text-left px-4 py-3 font-medium text-muted-foreground">User</th>
-                <th class="text-left px-4 py-3 font-medium text-muted-foreground">Role</th>
-                <th class="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th class="text-left px-4 py-3 font-medium text-muted-foreground">Last Login</th>
-                <th class="px-4 py-3 font-medium text-muted-foreground text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              <tr
-                v-if="filteredUsers.length === 0"
-                class="text-center"
-              >
-                <td colspan="5" class="py-12 text-muted-foreground">
-                  No users found
-                </td>
-              </tr>
+    <!-- Loading skeleton -->
+    <div v-if="store.loading && store.users.length === 0" class="flex justify-center py-20">
+      <Loader2 class="w-8 h-8 animate-spin text-muted-foreground" />
+    </div>
 
-              <tr
-                v-for="user in filteredUsers"
-                :key="user.id"
-                class="hover:bg-muted/20 transition-colors"
-              >
-                <!-- Avatar + name/email -->
-                <td class="px-4 py-3">
-                  <div class="flex items-center gap-3">
-                    <Avatar class="w-9 h-9">
-                      <AvatarFallback
-                        :class="cn('text-xs font-semibold', roleBadgeClass[user.role])"
-                      >
-                        {{ user.initials }}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p class="font-medium leading-tight">{{ user.name }}</p>
-                      <p class="text-xs text-muted-foreground">{{ user.email }}</p>
-                    </div>
-                  </div>
-                </td>
+    <template v-else>
+      <!-- Role filter tabs + search -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <Tabs
+          :model-value="roleFilter"
+          @update:model-value="setRoleFilter($event)"
+          class="flex-1"
+        >
+          <TabsList class="flex-wrap h-auto gap-1">
+            <TabsTrigger
+              v-for="tab in allRoles"
+              :key="tab.value"
+              :value="tab.value"
+              class="gap-1.5"
+            >
+              {{ tab.label }}
+              <span class="text-xs opacity-60">({{ countForRole(tab.value) }})</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-                <!-- Role badge -->
-                <td class="px-4 py-3">
-                  <Badge
-                    :class="cn('border font-medium text-xs', roleBadgeClass[user.role])"
-                  >
-                    <ShieldCheck class="w-3 h-3 mr-1" />
-                    {{ roleLabels[user.role] }}
-                  </Badge>
-                </td>
-
-                <!-- Status -->
-                <td class="px-4 py-3">
-                  <button
-                    class="flex items-center gap-1.5 text-xs font-medium transition-colors"
-                    :class="user.status === 'active' ? 'text-green-600' : 'text-muted-foreground'"
-                    @click="toggleStatus(user)"
-                  >
-                    <CheckCircle2 v-if="user.status === 'active'" class="w-4 h-4" />
-                    <XCircle v-else class="w-4 h-4" />
-                    {{ user.status === 'active' ? 'Active' : 'Inactive' }}
-                  </button>
-                </td>
-
-                <!-- Last login -->
-                <td class="px-4 py-3 text-muted-foreground font-mono text-xs">
-                  {{ user.lastLogin }}
-                </td>
-
-                <!-- Actions -->
-                <td class="px-4 py-3 text-right">
-                  <div class="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="openEdit(user)"
-                    >
-                      <Pencil class="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8 text-destructive hover:text-destructive"
-                      @click="deleteUser(user.id)"
-                    >
-                      <Trash2 class="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="relative w-full sm:w-64">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input v-model="searchQuery" placeholder="Search users…" class="pl-9" />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      <!-- Users table -->
+      <Card>
+        <CardContent class="p-0">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border bg-muted/40">
+                  <th class="text-left px-4 py-3 font-medium text-muted-foreground">User</th>
+                  <th class="text-left px-4 py-3 font-medium text-muted-foreground">Role</th>
+                  <th class="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                  <th class="text-left px-4 py-3 font-medium text-muted-foreground">Last Login</th>
+                  <th class="px-4 py-3 font-medium text-muted-foreground text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <tr v-if="filteredUsers.length === 0" class="text-center">
+                  <td colspan="5" class="py-12 text-muted-foreground">No users found</td>
+                </tr>
+
+                <tr
+                  v-for="user in filteredUsers"
+                  :key="user.id"
+                  class="hover:bg-muted/20 transition-colors"
+                >
+                  <!-- Avatar + name/email -->
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-3">
+                      <Avatar class="w-9 h-9">
+                        <AvatarFallback
+                          :class="cn('text-xs font-semibold', roleBadgeClass[user.role])"
+                        >
+                          {{ getInitials(user.name) }}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p class="font-medium leading-tight">{{ user.name }}</p>
+                        <p class="text-xs text-muted-foreground">{{ user.email }}</p>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Role badge -->
+                  <td class="px-4 py-3">
+                    <Badge :class="cn('border font-medium text-xs', roleBadgeClass[user.role])">
+                      <ShieldCheck class="w-3 h-3 mr-1" />
+                      {{ roleLabels[user.role] }}
+                    </Badge>
+                  </td>
+
+                  <!-- Status -->
+                  <td class="px-4 py-3">
+                    <button
+                      class="flex items-center gap-1.5 text-xs font-medium transition-colors"
+                      :class="user.active ? 'text-green-600' : 'text-muted-foreground'"
+                      @click="store.toggleActive(user.id)"
+                    >
+                      <CheckCircle2 v-if="user.active"  class="w-4 h-4" />
+                      <XCircle      v-else               class="w-4 h-4" />
+                      {{ user.active ? 'Active' : 'Inactive' }}
+                    </button>
+                  </td>
+
+                  <!-- Last login -->
+                  <td class="px-4 py-3 text-muted-foreground font-mono text-xs">
+                    {{ formatLastLogin(user.lastLoginAt) }}
+                  </td>
+
+                  <!-- Actions -->
+                  <td class="px-4 py-3 text-right">
+                    <div class="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="openEdit(user)">
+                        <Pencil class="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-destructive hover:text-destructive"
+                        @click="deleteUser(user.id)"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </template>
 
     <!-- ── Add / Edit User Dialog ──────────────────────────────────────── -->
     <Dialog :open="dialogOpen" @update:open="dialogOpen = $event">
@@ -416,10 +347,8 @@ function countForRole(role: UserRole | 'all'): number {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>Role</Label>
-              <Select :model-value="form.role" @update:model-value="form.role = $event as UserRole">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role…" />
-                </SelectTrigger>
+              <Select :model-value="form.role" @update:model-value="setFormRole($event)">
+                <SelectTrigger><SelectValue placeholder="Select role…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
@@ -430,12 +359,13 @@ function countForRole(role: UserRole | 'all'): number {
               </Select>
             </div>
 
-            <div class="space-y-1.5">
+            <div v-if="!isAdding" class="space-y-1.5">
               <Label>Status</Label>
-              <Select :model-value="form.status" @update:model-value="form.status = $event as UserStatus">
-                <SelectTrigger>
-                  <SelectValue placeholder="Status…" />
-                </SelectTrigger>
+              <Select
+                :model-value="form.active ? 'active' : 'inactive'"
+                @update:model-value="form.active = $event === 'active'"
+              >
+                <SelectTrigger><SelectValue placeholder="Status…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
@@ -452,7 +382,8 @@ function countForRole(role: UserRole | 'all'): number {
 
         <DialogFooter>
           <Button variant="outline" @click="dialogOpen = false">Cancel</Button>
-          <Button @click="saveUser">
+          <Button @click="saveUser" :disabled="saving">
+            <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
             {{ isAdding ? 'Add User' : 'Save Changes' }}
           </Button>
         </DialogFooter>

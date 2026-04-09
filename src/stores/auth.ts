@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { api, setToken, clearToken, getToken } from '@/lib/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,96 +15,48 @@ export interface User {
   avatar?: string
 }
 
-export interface LoginCredentials {
-  email: string
-  password: string
+interface LoginResponse {
+  token: string
+  user: User
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const MOCK_USERS: Array<User & { password: string }> = [
-  {
-    id: 'usr-001',
-    name: 'Admin User',
-    email: 'admin@pos.com',
-    role: 'admin',
-    password: 'admin',
-    avatar: undefined,
-  },
-  {
-    id: 'usr-002',
-    name: 'Jane Waiter',
-    email: 'waiter@pos.com',
-    role: 'waiter',
-    password: 'waiter',
-    avatar: undefined,
-  },
-  {
-    id: 'usr-003',
-    name: 'Bob Kitchen',
-    email: 'kitchen@pos.com',
-    role: 'kitchen',
-    password: 'kitchen',
-    avatar: undefined,
-  },
-  {
-    id: 'usr-004',
-    name: 'Alice Cashier',
-    email: 'cashier@pos.com',
-    role: 'cashier',
-    password: 'cashier',
-    avatar: undefined,
-  },
-]
-
-const ROLE_ROUTES: Record<UserRole, string> = {
-  admin: '/dashboard/admin',
-  manager: '/dashboard/manager',
-  waiter: '/dashboard/tables',
-  kitchen: '/dashboard/kitchen',
-  cashier: '/dashboard/cashier',
+/** Default landing page after login per role. */
+const ROLE_HOME: Record<UserRole, string> = {
+  admin:   '/',
+  manager: '/',
+  waiter:  '/tables',
+  kitchen: '/kitchen',
+  cashier: '/payments',
 }
-
-const SESSION_KEY = 'pos_session_user'
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useAuthStore = defineStore('auth', () => {
   const router = useRouter()
 
-  const user = ref<User | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const user            = ref<User | null>(null)
+  const loading         = ref(false)
+  const error           = ref<string | null>(null)
+  /** Prevents /auth/me from being called on every navigation. */
+  const sessionChecked  = ref(false)
 
   const isAuthenticated = computed(() => user.value !== null)
-  const userRole = computed(() => user.value?.role ?? null)
+  const userRole        = computed(() => user.value?.role ?? null)
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
   async function login(email: string, password: string): Promise<void> {
     loading.value = true
-    error.value = null
+    error.value   = null
 
     try {
-      // TODO: Replace with real API call
-      // const response = await api.post('/auth/login', { email, password })
-      await new Promise((resolve) => setTimeout(resolve, 800))
-
-      const found = MOCK_USERS.find(
-        (u) => u.email === email && u.password === password,
-      )
-
-      if (!found) {
-        throw new Error('Invalid email or password.')
-      }
-
-      const { password: _pw, ...safeUser } = found
-      user.value = safeUser
-
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(safeUser))
-
-      const destination = ROLE_ROUTES[safeUser.role]
-      await router.push(destination)
+      const data = await api.post<LoginResponse>('/auth/login', { email, password })
+      setToken(data.token)
+      user.value           = data.user
+      sessionChecked.value = true
+      await router.push(ROLE_HOME[data.user.role])
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Login failed.'
       throw err
@@ -114,34 +67,36 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout(): Promise<void> {
     loading.value = true
-
     try {
-      // TODO: Replace with real API call
-      // await api.post('/auth/logout')
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await api.post('/auth/logout')
+    } catch {
+      // Ignore logout errors — clear local state regardless.
     } finally {
-      user.value = null
-      sessionStorage.removeItem(SESSION_KEY)
+      user.value           = null
+      sessionChecked.value = false
+      clearToken()
       loading.value = false
       await router.push('/login')
     }
   }
 
+  /**
+   * Restores the session from the stored JWT by calling GET /auth/me.
+   * Only runs once per app lifecycle (guarded by `sessionChecked`).
+   */
   async function checkSession(): Promise<void> {
+    if (sessionChecked.value) return
+    sessionChecked.value = true
+
+    if (!getToken()) return
+
     loading.value = true
-
     try {
-      // TODO: Replace with real API call to validate token
-      // const response = await api.get('/auth/me')
-      await new Promise((resolve) => setTimeout(resolve, 200))
-
-      const raw = sessionStorage.getItem(SESSION_KEY)
-      if (raw) {
-        user.value = JSON.parse(raw) as User
-      }
+      const data   = await api.get<{ user: User }>('/auth/me')
+      user.value   = data.user
     } catch {
       user.value = null
-      sessionStorage.removeItem(SESSION_KEY)
+      clearToken()
     } finally {
       loading.value = false
     }

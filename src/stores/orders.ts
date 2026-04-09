@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { api } from '@/lib/api'
 import { useMenuStore } from './menu'
 import { useTablesStore } from './tables'
-import { useInventoryStore } from './inventory'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,193 +54,22 @@ const TAX_RATE = 0.08
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function generateId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-}
-
 function nowIso(): string {
   return new Date().toISOString()
 }
 
-// ─── Mock existing orders ────────────────────────────────────────────────────
-
-const MOCK_ORDERS: Order[] = [
-  {
-    id: 'ord-001',
-    tableId: 'tbl-001',
-    tableName: 'Table 1',
-    items: [
-      {
-        id: 'oi-001-a',
-        menuItemId: 'itm-bev-002',
-        name: 'Cappuccino',
-        price: 4.75,
-        quantity: 2,
-        modifiers: ['Oat Milk'],
-      },
-      {
-        id: 'oi-001-b',
-        menuItemId: 'itm-sta-001',
-        name: 'Bruschetta al Pomodoro',
-        price: 9.0,
-        quantity: 1,
-        modifiers: [],
-      },
-    ],
-    status: 'preparing',
-    createdAt: new Date(Date.now() - 25 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 18 * 60_000).toISOString(),
-    serverId: 'usr-002',
-    discount: 0,
-    tip: 0,
-  },
-  {
-    id: 'ord-002',
-    tableId: 'tbl-004',
-    tableName: 'Table 4',
-    items: [
-      {
-        id: 'oi-002-a',
-        menuItemId: 'itm-mai-001',
-        name: 'Grilled Ribeye Steak',
-        price: 38.0,
-        quantity: 2,
-        modifiers: ['Medium Rare', 'Peppercorn'],
-      },
-      {
-        id: 'oi-002-b',
-        menuItemId: 'itm-sta-002',
-        name: 'Calamari Fritti',
-        price: 13.5,
-        quantity: 1,
-        modifiers: [],
-      },
-      {
-        id: 'oi-002-c',
-        menuItemId: 'itm-bev-001',
-        name: 'Espresso',
-        price: 3.5,
-        quantity: 2,
-        modifiers: ['Double'],
-      },
-    ],
-    status: 'sent',
-    createdAt: new Date(Date.now() - 10 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 8 * 60_000).toISOString(),
-    serverId: 'usr-002',
-    discount: 0,
-    tip: 0,
-  },
-  {
-    id: 'ord-003',
-    tableId: 'tbl-007',
-    tableName: 'Table 7',
-    items: [
-      {
-        id: 'oi-003-a',
-        menuItemId: 'itm-mai-004',
-        name: 'Margherita Pizza',
-        price: 18.0,
-        quantity: 3,
-        modifiers: ['Classic'],
-      },
-      {
-        id: 'oi-003-b',
-        menuItemId: 'itm-mai-003',
-        name: 'Mushroom Risotto',
-        price: 22.0,
-        quantity: 1,
-        modifiers: ['Extra Truffle'],
-      },
-      {
-        id: 'oi-003-c',
-        menuItemId: 'itm-bev-003',
-        name: 'Fresh Orange Juice',
-        price: 5.5,
-        quantity: 4,
-        modifiers: [],
-      },
-    ],
-    status: 'ready',
-    createdAt: new Date(Date.now() - 45 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    serverId: 'usr-002',
-    discount: 10,
-    tip: 0,
-  },
-  {
-    id: 'ord-004',
-    tableId: 'tbl-009',
-    tableName: 'Table 9',
-    items: [
-      {
-        id: 'oi-004-a',
-        menuItemId: 'itm-mai-002',
-        name: 'Pan-Seared Salmon',
-        price: 26.0,
-        quantity: 2,
-        modifiers: ['Steamed Rice'],
-      },
-      {
-        id: 'oi-004-b',
-        menuItemId: 'itm-des-001',
-        name: 'Tiramisu',
-        price: 9.5,
-        quantity: 2,
-        modifiers: [],
-      },
-    ],
-    status: 'served',
-    createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 15 * 60_000).toISOString(),
-    serverId: 'usr-002',
-    discount: 0,
-    tip: 12,
-  },
-  {
-    id: 'ord-005',
-    tableId: 'tbl-011',
-    tableName: 'Table 11 (Bar)',
-    items: [
-      {
-        id: 'oi-005-a',
-        menuItemId: 'itm-bev-001',
-        name: 'Espresso',
-        price: 3.5,
-        quantity: 1,
-        modifiers: ['Single'],
-      },
-      {
-        id: 'oi-005-b',
-        menuItemId: 'itm-des-002',
-        name: 'Chocolate Lava Cake',
-        price: 11.0,
-        quantity: 1,
-        modifiers: ['Salted Caramel'],
-      },
-    ],
-    status: 'draft',
-    createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    updatedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-    serverId: 'usr-002',
-    discount: 0,
-    tip: 0,
-  },
-]
-
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useOrdersStore = defineStore('orders', () => {
-  const menuStore = useMenuStore()
+  const menuStore   = useMenuStore()
   const tablesStore = useTablesStore()
-  const inventoryStore = useInventoryStore()
 
-  const orders = ref<Order[]>([])
+  const orders      = ref<Order[]>([])
   const activeOrder = ref<Order | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const loading     = ref(false)
+  const error       = ref<string | null>(null)
 
-  // ── Order-level computed (active order) ───────────────────────────────────
+  // ── Active-order computed ─────────────────────────────────────────────────
 
   const subtotal = computed(() => {
     if (!activeOrder.value) return 0
@@ -250,60 +79,43 @@ export const useOrdersStore = defineStore('orders', () => {
     )
   })
 
-  const discountAmount = computed(() => activeOrder.value?.discount ?? 0)
+  const discountAmount        = computed(() => activeOrder.value?.discount ?? 0)
+  const subtotalAfterDiscount = computed(() => subtotal.value - discountAmount.value)
+  const tax                   = computed(() => Math.max(0, subtotalAfterDiscount.value * TAX_RATE))
+  const tipAmount             = computed(() => activeOrder.value?.tip ?? 0)
+  const orderTotal            = computed(() => subtotalAfterDiscount.value + tax.value + tipAmount.value)
+  const totalWithTax          = computed(() => subtotalAfterDiscount.value + tax.value)
 
-  const subtotalAfterDiscount = computed(
-    () => subtotal.value - discountAmount.value,
-  )
-
-  const tax = computed(() =>
-    Math.max(0, subtotalAfterDiscount.value * TAX_RATE),
-  )
-
-  const tipAmount = computed(() => activeOrder.value?.tip ?? 0)
-
-  const orderTotal = computed(
-    () => subtotalAfterDiscount.value + tax.value + tipAmount.value,
-  )
-
-  const totalWithTax = computed(
-    () => subtotalAfterDiscount.value + tax.value,
-  )
-
-  // ── List-level computed ───────────────────────────────────────────────────
+  // ── List computed ─────────────────────────────────────────────────────────
 
   const activeOrders = computed(() =>
-    orders.value.filter(
-      (o) =>
-        o.status !== 'paid' &&
-        o.status !== 'cancelled',
-    ),
+    orders.value.filter((o) => o.status !== 'paid' && o.status !== 'cancelled'),
   )
 
   const pendingKitchenOrders = computed(() =>
-    orders.value.filter(
-      (o) => o.status === 'sent' || o.status === 'preparing',
-    ),
+    orders.value.filter((o) => o.status === 'sent' || o.status === 'preparing'),
   )
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /** Sync a returned order into both the list and activeOrder if applicable. */
+  function _syncOrder(updated: Order): void {
+    const idx = orders.value.findIndex((o) => o.id === updated.id)
+    if (idx !== -1) orders.value[idx] = updated
+    if (activeOrder.value?.id === updated.id) activeOrder.value = updated
+  }
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function fetchOrders(): Promise<void> {
     loading.value = true
-    error.value = null
+    error.value   = null
 
     try {
-      // TODO: Replace with real API call
-      // const response = await api.get('/orders')
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      orders.value = MOCK_ORDERS.map((o) => ({
-        ...o,
-        items: o.items.map((i) => ({ ...i })),
-      }))
+      const data    = await api.get<{ orders: Order[] }>('/orders')
+      orders.value  = data.orders
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : 'Failed to load orders.'
+      error.value = err instanceof Error ? err.message : 'Failed to load orders.'
       throw err
     } finally {
       loading.value = false
@@ -312,40 +124,27 @@ export const useOrdersStore = defineStore('orders', () => {
 
   async function createOrder(tableId?: string): Promise<Order> {
     loading.value = true
-    error.value = null
+    error.value   = null
 
     try {
-      // TODO: Replace with real API call
-      // const response = await api.post('/orders', { tableId })
-      await new Promise((resolve) => setTimeout(resolve, 300))
-
-      const table = tableId ? tablesStore.getTableById(tableId) : undefined
-      const now = nowIso()
-
-      const newOrder: Order = {
-        id: generateId('ord'),
-        tableId,
-        tableName: table ? `Table ${table.number}` : undefined,
-        items: [],
-        status: 'draft',
-        createdAt: now,
-        updatedAt: now,
-        serverId: 'usr-002', // TODO: get from auth store
-        discount: 0,
-        tip: 0,
-      }
+      const data      = await api.post<{ order: Order }>('/orders', { tableId })
+      const newOrder  = data.order
 
       orders.value.push(newOrder)
       activeOrder.value = newOrder
 
+      // Optimistically reflect the table as occupied in the local store.
       if (tableId) {
-        await tablesStore.assignOrder(tableId, newOrder.id)
+        const table = tablesStore.tables.find((t) => t.id === tableId)
+        if (table) {
+          table.status         = 'occupied'
+          table.currentOrderId = newOrder.id
+        }
       }
 
       return newOrder
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : 'Failed to create order.'
+      error.value = err instanceof Error ? err.message : 'Failed to create order.'
       throw err
     } finally {
       loading.value = false
@@ -353,19 +152,17 @@ export const useOrdersStore = defineStore('orders', () => {
   }
 
   async function addItem(payload: AddItemPayload): Promise<void> {
-    if (!activeOrder.value) {
-      throw new Error('No active order. Call createOrder() first.')
-    }
+    if (!activeOrder.value) throw new Error('No active order. Call createOrder() first.')
 
-    const menuItem = menuStore.getItemById(payload.menuItemId)
-    if (!menuItem) {
-      throw new Error(`Menu item ${payload.menuItemId} not found.`)
-    }
-
+    const orderId   = activeOrder.value.id
     const modifiers = payload.modifiers ?? []
-    const quantity = payload.quantity ?? 1
+    const quantity  = payload.quantity  ?? 1
 
-    // Merge with existing identical line item (same item + same modifiers + same notes)
+    // ── Optimistic update ──────────────────────────────────────────────────
+    // Look up the menu item locally so we can display it immediately.
+    const menuItem = menuStore.getItemById(payload.menuItemId)
+    if (!menuItem) throw new Error(`Menu item ${payload.menuItemId} not found.`)
+
     const existingItem = activeOrder.value.items.find(
       (i) =>
         i.menuItemId === payload.menuItemId &&
@@ -373,119 +170,153 @@ export const useOrdersStore = defineStore('orders', () => {
         (i.notes ?? '') === (payload.notes ?? ''),
     )
 
+    const tempId = `temp-${Date.now()}`
     if (existingItem) {
       existingItem.quantity += quantity
     } else {
       activeOrder.value.items.push({
-        id: generateId('oi'),
+        id:         tempId,
         menuItemId: payload.menuItemId,
-        name: menuItem.name,
-        price: menuItem.price,
+        name:       menuItem.name,
+        price:      menuItem.price,
+        quantity,
+        modifiers,
+        notes:      payload.notes,
+      })
+    }
+    activeOrder.value.updatedAt = nowIso()
+
+    try {
+      const data = await api.post<{ order: Order }>(`/orders/${orderId}/items`, {
+        menuItemId: payload.menuItemId,
         quantity,
         modifiers,
         notes: payload.notes,
       })
+      _syncOrder(data.order)
+    } catch (err) {
+      // Rollback optimistic change.
+      if (existingItem) {
+        existingItem.quantity -= quantity
+      } else {
+        const idx = activeOrder.value?.items.findIndex((i) => i.id === tempId) ?? -1
+        if (idx !== -1) activeOrder.value!.items.splice(idx, 1)
+      }
+      error.value = err instanceof Error ? err.message : 'Failed to add item.'
+      throw err
     }
-
-    activeOrder.value.updatedAt = nowIso()
-
-    // TODO: Replace with real API call
-    // await api.post(`/orders/${activeOrder.value.id}/items`, payload)
-    await new Promise((resolve) => setTimeout(resolve, 150))
   }
 
   async function removeItem(orderItemId: string): Promise<void> {
     if (!activeOrder.value) return
 
-    const index = activeOrder.value.items.findIndex(
-      (i) => i.id === orderItemId,
-    )
-    if (index === -1) return
+    const orderId  = activeOrder.value.id
+    const itemIdx  = activeOrder.value.items.findIndex((i) => i.id === orderItemId)
+    if (itemIdx === -1) return
 
-    activeOrder.value.items.splice(index, 1)
+    // Optimistic removal.
+    const removed = activeOrder.value.items[itemIdx]!
+    activeOrder.value.items.splice(itemIdx, 1)
     activeOrder.value.updatedAt = nowIso()
 
-    // TODO: Replace with real API call
-    // await api.delete(`/orders/${activeOrder.value.id}/items/${orderItemId}`)
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    try {
+      const data = await api.delete<{ order: Order }>(`/orders/${orderId}/items/${orderItemId}`)
+      _syncOrder(data.order)
+    } catch (err) {
+      // Rollback.
+      activeOrder.value!.items.splice(itemIdx, 0, removed)
+      error.value = err instanceof Error ? err.message : 'Failed to remove item.'
+      throw err
+    }
   }
 
-  async function updateItemQuantity(
-    orderItemId: string,
-    quantity: number,
-  ): Promise<void> {
+  async function updateItemQuantity(orderItemId: string, quantity: number): Promise<void> {
     if (!activeOrder.value) return
 
     if (quantity <= 0) {
-      await removeItem(orderItemId)
-      return
+      return removeItem(orderItemId)
     }
 
-    const item = activeOrder.value.items.find((i) => i.id === orderItemId)
+    const orderId     = activeOrder.value.id
+    const item        = activeOrder.value.items.find((i) => i.id === orderItemId)
     if (!item) return
 
-    item.quantity = quantity
+    const previousQty = item.quantity
+    item.quantity     = quantity
     activeOrder.value.updatedAt = nowIso()
 
-    // TODO: Replace with real API call
-    // await api.patch(`/orders/${activeOrder.value.id}/items/${orderItemId}`, { quantity })
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    try {
+      const data = await api.patch<{ order: Order }>(
+        `/orders/${orderId}/items/${orderItemId}`,
+        { quantity },
+      )
+      _syncOrder(data.order)
+    } catch (err) {
+      item.quantity = previousQty
+      error.value   = err instanceof Error ? err.message : 'Failed to update quantity.'
+      throw err
+    }
   }
 
-  function setDiscount(amount: number): void {
+  async function setDiscount(amount: number): Promise<void> {
     if (!activeOrder.value) return
+
+    const orderId = activeOrder.value.id
+    const prev    = activeOrder.value.discount
     activeOrder.value.discount = Math.max(0, amount)
-    activeOrder.value.updatedAt = nowIso()
-    // TODO: await api.patch(`/orders/${activeOrder.value.id}`, { discount: amount })
+
+    try {
+      const data = await api.patch<{ order: Order }>(`/orders/${orderId}`, { discount: amount })
+      _syncOrder(data.order)
+    } catch (err) {
+      activeOrder.value!.discount = prev
+      error.value = err instanceof Error ? err.message : 'Failed to set discount.'
+      throw err
+    }
   }
 
-  function setTip(amount: number): void {
+  async function setTip(amount: number): Promise<void> {
     if (!activeOrder.value) return
+
+    const orderId = activeOrder.value.id
+    const prev    = activeOrder.value.tip
     activeOrder.value.tip = Math.max(0, amount)
-    activeOrder.value.updatedAt = nowIso()
-    // TODO: await api.patch(`/orders/${activeOrder.value.id}`, { tip: amount })
+
+    try {
+      const data = await api.patch<{ order: Order }>(`/orders/${orderId}`, { tip: amount })
+      _syncOrder(data.order)
+    } catch (err) {
+      activeOrder.value!.tip = prev
+      error.value = err instanceof Error ? err.message : 'Failed to set tip.'
+      throw err
+    }
   }
 
   async function sendToKitchen(orderId: string): Promise<void> {
-    const order = orders.value.find((o) => o.id === orderId)
-    if (order) {
-      inventoryStore.deductForOrder(
-        orderId,
-        order.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
-      )
-    }
+    // Server handles inventory deduction when status changes to 'sent'.
     await updateOrderStatus(orderId, 'sent')
   }
 
-  async function updateOrderStatus(
-    orderId: string,
-    status: OrderStatus,
-  ): Promise<void> {
+  async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
     const order = orders.value.find((o) => o.id === orderId)
     if (!order) return
 
     const previousStatus = order.status
-    order.status = status
-    order.updatedAt = nowIso()
-
-    // Sync active order if it is the one being updated
+    order.status         = status
+    order.updatedAt      = nowIso()
     if (activeOrder.value?.id === orderId) {
-      activeOrder.value.status = status
+      activeOrder.value.status    = status
       activeOrder.value.updatedAt = order.updatedAt
     }
 
     try {
-      // TODO: Replace with real API call
-      // await api.patch(`/orders/${orderId}/status`, { status })
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      const data = await api.patch<{ order: Order }>(`/orders/${orderId}/status`, { status })
+      _syncOrder(data.order)
     } catch (err) {
       order.status = previousStatus
       order.updatedAt = nowIso()
-      if (activeOrder.value?.id === orderId) {
-        activeOrder.value.status = previousStatus
-      }
-      error.value =
-        err instanceof Error ? err.message : 'Failed to update order status.'
+      if (activeOrder.value?.id === orderId) activeOrder.value.status = previousStatus
+      error.value  = err instanceof Error ? err.message : 'Failed to update order status.'
       throw err
     }
   }
@@ -496,30 +327,26 @@ export const useOrdersStore = defineStore('orders', () => {
     amount: number,
   ): Promise<void> {
     loading.value = true
-    error.value = null
+    error.value   = null
 
     try {
-      // TODO: Replace with real API call
-      // await api.post(`/orders/${orderId}/payment`, { method, amount })
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      const data = await api.post<{ order: Order }>(`/orders/${orderId}/payment`, { method, amount })
+      _syncOrder(data.order)
 
-      await updateOrderStatus(orderId, 'paid')
-
-      const order = orders.value.find((o) => o.id === orderId)
-      if (order?.tableId) {
-        await tablesStore.updateStatus(order.tableId, 'cleaning')
+      // Update local table state without a redundant API call —
+      // the server already set the table to 'cleaning'.
+      const tableId = data.order.tableId
+      if (tableId) {
+        const table = tablesStore.tables.find((t) => t.id === tableId)
+        if (table) {
+          table.status         = 'cleaning'
+          table.currentOrderId = undefined
+        }
       }
 
-      if (activeOrder.value?.id === orderId) {
-        activeOrder.value = null
-      }
-
-      // Suppress unused-variable warning for `method` and `amount` until real API is wired
-      void method
-      void amount
+      if (activeOrder.value?.id === orderId) activeOrder.value = null
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : 'Payment processing failed.'
+      error.value = err instanceof Error ? err.message : 'Payment processing failed.'
       throw err
     } finally {
       loading.value = false
@@ -528,26 +355,27 @@ export const useOrdersStore = defineStore('orders', () => {
 
   async function cancelOrder(orderId: string): Promise<void> {
     loading.value = true
-    error.value = null
+    error.value   = null
 
     try {
-      // TODO: Replace with real API call
-      // await api.patch(`/orders/${orderId}/cancel`)
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      const data = await api.patch<{ order: Order }>(`/orders/${orderId}/status`, {
+        status: 'cancelled',
+      })
+      _syncOrder(data.order)
 
-      await updateOrderStatus(orderId, 'cancelled')
-
-      const order = orders.value.find((o) => o.id === orderId)
-      if (order?.tableId) {
-        await tablesStore.updateStatus(order.tableId, 'available')
+      // Update local table state without a redundant API call.
+      const tableId = data.order.tableId
+      if (tableId) {
+        const table = tablesStore.tables.find((t) => t.id === tableId)
+        if (table) {
+          table.status         = 'available'
+          table.currentOrderId = undefined
+        }
       }
 
-      if (activeOrder.value?.id === orderId) {
-        activeOrder.value = null
-      }
+      if (activeOrder.value?.id === orderId) activeOrder.value = null
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : 'Failed to cancel order.'
+      error.value = err instanceof Error ? err.message : 'Failed to cancel order.'
       throw err
     } finally {
       loading.value = false
@@ -559,8 +387,7 @@ export const useOrdersStore = defineStore('orders', () => {
       activeOrder.value = null
       return
     }
-    const found = orders.value.find((o) => o.id === orderId)
-    activeOrder.value = found ?? null
+    activeOrder.value = orders.value.find((o) => o.id === orderId) ?? null
   }
 
   return {

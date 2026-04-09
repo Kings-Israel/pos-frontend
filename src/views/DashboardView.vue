@@ -59,7 +59,7 @@ const stats = computed(() => {
   return [
     {
       label: "Today's Revenue",
-      value: daily ? `$${daily.totalRevenue.toFixed(2)}` : '—',
+      value: daily ? `KES ${daily.totalRevenue.toFixed(2)}` : '—',
       trend: '+12.4%',
       trendUp: true,
       icon: DollarSign,
@@ -77,9 +77,7 @@ const stats = computed(() => {
     },
     {
       label: 'Active Tables',
-      value: tablesStore.occupiedTables.length
-        ? String(tablesStore.occupiedTables.length)
-        : '0',
+      value: tablesStore.occupiedTables.length ? String(tablesStore.occupiedTables.length) : '0',
       trend: `${tablesStore.tables.length} total`,
       trendUp: null,
       icon: Table2,
@@ -88,7 +86,7 @@ const stats = computed(() => {
     },
     {
       label: 'Avg Order Value',
-      value: daily ? `$${daily.averageOrderValue.toFixed(2)}` : '—',
+      value: daily ? `KES ${daily.averageOrderValue?.toFixed(2)}` : '—',
       trend: '+3.2%',
       trendUp: true,
       icon: TrendingUp,
@@ -101,13 +99,13 @@ const stats = computed(() => {
 const recentOrders = computed(() =>
   [...ordersStore.orders]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
+    .slice(0, 5),
 )
 
 const popularItems = computed(() => reportsStore.popularItems.slice(0, 5))
 
 const maxHourlySales = computed(() => {
-  const vals = reportsStore.hourlyData.map((d) => d.sales)
+  const vals = reportsStore.hourlyData.map((d) => d.revenue)
   return Math.max(...vals, 1)
 })
 
@@ -130,7 +128,7 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-function orderTotal(order: typeof ordersStore.orders[0]) {
+function orderTotal(order: (typeof ordersStore.orders)[0]) {
   const sub = order.items.reduce((s, i) => s + i.price * i.quantity, 0)
   return sub - order.discount + order.tip
 }
@@ -148,7 +146,9 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
       </div>
       <div class="flex items-center gap-2 text-sm text-muted-foreground">
         <Clock class="w-4 h-4" />
-        {{ new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) }}
+        {{
+          new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+        }}
       </div>
     </div>
 
@@ -164,10 +164,7 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
               <p class="text-sm text-muted-foreground font-medium">{{ stat.label }}</p>
               <p class="text-3xl font-bold tracking-tight">{{ stat.value }}</p>
               <div class="flex items-center gap-1">
-                <TrendingUp
-                  v-if="stat.trendUp === true"
-                  class="w-3 h-3 text-emerald-500"
-                />
+                <TrendingUp v-if="stat.trendUp === true" class="w-3 h-3 text-emerald-500" />
                 <span
                   class="text-xs"
                   :class="stat.trendUp === true ? 'text-emerald-500' : 'text-muted-foreground'"
@@ -197,7 +194,9 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
           <p class="font-semibold">New Order</p>
           <p class="text-sm text-primary-foreground/70 mt-0.5">Start taking an order</p>
         </div>
-        <ArrowRight class="w-4 h-4 opacity-60 group-hover:translate-x-1 transition-transform mt-auto" />
+        <ArrowRight
+          class="w-4 h-4 opacity-60 group-hover:translate-x-1 transition-transform mt-auto"
+        />
       </button>
 
       <button
@@ -213,7 +212,9 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
             {{ tablesStore.availableTables.length }} available
           </p>
         </div>
-        <ArrowRight class="w-4 h-4 text-muted-foreground opacity-60 group-hover:translate-x-1 transition-transform mt-auto" />
+        <ArrowRight
+          class="w-4 h-4 text-muted-foreground opacity-60 group-hover:translate-x-1 transition-transform mt-auto"
+        />
       </button>
 
       <button
@@ -229,7 +230,9 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
             {{ ordersStore.pendingKitchenOrders.length }} pending
           </p>
         </div>
-        <ArrowRight class="w-4 h-4 text-muted-foreground opacity-60 group-hover:translate-x-1 transition-transform mt-auto" />
+        <ArrowRight
+          class="w-4 h-4 text-muted-foreground opacity-60 group-hover:translate-x-1 transition-transform mt-auto"
+        />
       </button>
     </div>
 
@@ -250,17 +253,40 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
           <div v-if="ordersStore.loading" class="flex items-center justify-center py-8">
             <Loader2 class="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
-          <div v-else-if="recentOrders.length === 0" class="py-8 text-center text-muted-foreground text-sm">
+          <div
+            v-else-if="recentOrders.length === 0"
+            class="py-8 text-center text-muted-foreground text-sm"
+          >
             No orders yet today.
           </div>
           <table v-else class="w-full text-sm">
             <thead>
               <tr class="border-b border-border">
-                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Order</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Table</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Order
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Table
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Time
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Status
+                </th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
+                  Total
+                </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border">
@@ -284,7 +310,7 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
                   </Badge>
                 </td>
                 <td class="px-6 py-3.5 text-right font-semibold">
-                  ${{ orderTotal(order).toFixed(2) }}
+                  KES {{ orderTotal(order).toFixed(2) }}
                 </td>
               </tr>
             </tbody>
@@ -302,10 +328,7 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
           <CardDescription>Top sellers today</CardDescription>
         </CardHeader>
         <CardContent class="space-y-3">
-          <div
-            v-if="reportsStore.loading"
-            class="flex items-center justify-center py-6"
-          >
+          <div v-if="reportsStore.loading" class="flex items-center justify-center py-6">
             <Loader2 class="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
           <template v-else>
@@ -314,7 +337,9 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
               :key="item.menuItemId"
               class="flex items-center gap-3"
             >
-              <div class="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-bold text-muted-foreground shrink-0">
+              <div
+                class="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-bold text-muted-foreground shrink-0"
+              >
                 {{ item.rank }}
               </div>
               <div class="flex-1 min-w-0">
@@ -322,7 +347,7 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
                 <p class="text-xs text-muted-foreground">{{ item.quantitySold }} sold</p>
               </div>
               <p class="text-sm font-semibold text-emerald-600 shrink-0">
-                ${{ item.revenue.toFixed(0) }}
+                KES {{ item.revenue.toFixed(0) }}
               </p>
             </div>
           </template>
@@ -356,22 +381,28 @@ function orderTotal(order: typeof ordersStore.orders[0]) {
             :key="point.hour"
             class="flex flex-col items-center gap-1 flex-1 min-w-0"
           >
-            <div class="w-full flex items-end justify-center" style="height: 80px;">
+            <div class="w-full flex items-end justify-center" style="height: 80px">
               <div
                 class="w-full max-w-[28px] bg-primary/80 rounded-t hover:bg-primary transition-colors cursor-default group relative"
-                :style="{ height: `${Math.max(4, Math.round((point.sales / maxHourlySales) * 80))}px` }"
+                :style="{
+                  height: `${Math.max(4, Math.round((point.sales / maxHourlySales) * 80))}px`,
+                }"
               >
                 <!-- Tooltip -->
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center z-10">
-                  <div class="bg-foreground text-background text-xs rounded px-2 py-1 whitespace-nowrap shadow">
-                    ${{ point.sales.toFixed(0) }} &bull; {{ point.orders }} orders
+                <div
+                  class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center z-10"
+                >
+                  <div
+                    class="bg-foreground text-background text-xs rounded px-2 py-1 whitespace-nowrap shadow"
+                  >
+                    ${{ point.revenue.toFixed(0) }} &bull; {{ point.orders }} orders
                   </div>
                   <div class="w-2 h-2 bg-foreground rotate-45 -mt-1" />
                 </div>
               </div>
             </div>
             <span class="text-xs text-muted-foreground truncate w-full text-center">
-              {{ point.hour.replace(':00', '') }}
+              {{ point.hour }}
             </span>
           </div>
         </div>
