@@ -98,7 +98,7 @@ const stats = computed(() => {
 
 const recentOrders = computed(() =>
   [...ordersStore.orders]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5),
 )
 
@@ -302,7 +302,7 @@ function orderTotal(order: (typeof ordersStore.orders)[0]) {
                   {{ order.tableName ?? 'Takeaway' }}
                 </td>
                 <td class="px-6 py-3.5 text-muted-foreground">
-                  {{ formatTime(order.createdAt) }}
+                  {{ formatTime(order.created_at) }}
                 </td>
                 <td class="px-6 py-3.5">
                   <Badge :variant="statusVariant(order.status)" class="capitalize text-xs">
@@ -310,7 +310,7 @@ function orderTotal(order: (typeof ordersStore.orders)[0]) {
                   </Badge>
                 </td>
                 <td class="px-6 py-3.5 text-right font-semibold">
-                  KES {{ orderTotal(order).toFixed(2) }}
+                  KES {{ new Intl.NumberFormat().format(orderTotal(order)) }}
                 </td>
               </tr>
             </tbody>

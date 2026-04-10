@@ -79,7 +79,7 @@ const allCategories = computed(() => [
 const filteredItems = computed(() => {
   let items = menuStore.items
   if (activeCategoryId.value !== 'all') {
-    items = items.filter((i) => i.categoryId === activeCategoryId.value)
+    items = items.filter((i) => i.category_id === activeCategoryId.value)
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
@@ -296,7 +296,7 @@ function itemBg(idx: number): string {
               class="h-24 flex items-center justify-center text-3xl font-bold relative"
               :class="itemBg(idx)"
             >
-              <span>{{ menuStore.categories.find((c) => c.id === item.categoryId)?.icon ?? '🍽️' }}</span>
+              <span>{{ menuStore.categories.find((c) => c.id === item.category_id)?.icon ?? '🍽️' }}</span>
 
               <!-- In-cart indicator -->
               <div
@@ -322,7 +322,7 @@ function itemBg(idx: number): string {
               <p class="text-sm font-semibold leading-tight line-clamp-1">{{ item.name }}</p>
               <p class="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{{ item.description }}</p>
               <div class="flex items-center justify-between pt-0.5">
-                <span class="text-sm font-bold text-primary">${{ item.price.toFixed(2) }}</span>
+                <span class="text-sm font-bold text-primary">KES {{ new Intl.NumberFormat().format(item.price) }}</span>
                 <div
                   v-if="item.available"
                   class="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors"

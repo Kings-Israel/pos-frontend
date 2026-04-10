@@ -33,9 +33,9 @@ export interface Order {
   tableName?: string
   items: OrderItem[]
   status: OrderStatus
-  createdAt: string
-  updatedAt: string
-  serverId: string
+  created_at: string
+  updated_at: string
+  server_id: string
   discount: number
   tip: number
   notes?: string
@@ -89,11 +89,11 @@ export const useOrdersStore = defineStore('orders', () => {
   // ── List computed ─────────────────────────────────────────────────────────
 
   const activeOrders = computed(() =>
-    orders.value.filter((o) => o.status !== 'paid' && o.status !== 'cancelled'),
+    orders.value?.filter((o) => o.status !== 'paid' && o.status !== 'cancelled'),
   )
 
   const pendingKitchenOrders = computed(() =>
-    orders.value.filter((o) => o.status === 'sent' || o.status === 'preparing'),
+    orders.value?.filter((o) => o.status === 'sent' || o.status === 'preparing'),
   )
 
   // ── Helpers ───────────────────────────────────────────────────────────────

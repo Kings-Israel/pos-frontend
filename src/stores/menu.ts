@@ -50,6 +50,7 @@ export interface MenuItemUpdatePayload {
   price?: number
   available?: boolean
   image?: string
+  categoryId?: string
   modifiers?: Modifier[]
 }
 
@@ -68,7 +69,7 @@ export const useMenuStore = defineStore('menu', () => {
   const itemsByCategory = computed(() => {
     const map: Record<string, MenuItem[]> = {}
     for (const cat of categories.value) {
-      map[cat.id] = items.value.filter((i) => i.categoryId === cat.id)
+      map[cat.id] = items.value.filter((i) => i.category_id === cat.id)
     }
     return map
   })
@@ -126,7 +127,6 @@ export const useMenuStore = defineStore('menu', () => {
     if (index === -1) return
 
     const snapshot = { ...items.value[index] } as MenuItem
-
     try {
       const res = await api.patch<{ item: MenuItem }>(`/menu/items/${id}`, data)
       items.value[index] = res.item

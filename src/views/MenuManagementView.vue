@@ -14,11 +14,6 @@ import DialogContent from '@/components/ui/dialog-content.vue'
 import DialogHeader from '@/components/ui/dialog-header.vue'
 import DialogTitle from '@/components/ui/dialog-title.vue'
 import DialogFooter from '@/components/ui/dialog-footer.vue'
-import Select from '@/components/ui/select.vue'
-import SelectTrigger from '@/components/ui/select-trigger.vue'
-import SelectValue from '@/components/ui/select-value.vue'
-import SelectContent from '@/components/ui/select-content.vue'
-import SelectItem from '@/components/ui/select-item.vue'
 import { cn } from '@/lib/utils'
 import {
   Search,
@@ -115,6 +110,7 @@ async function saveDialog() {
     if (!isAdding.value) {
       await menuStore.updateItem(editForm.value.id, {
         name: editForm.value.name,
+        categoryId: editForm.value.categoryId,
         description: editForm.value.description,
         price,
         available: editForm.value.available,
@@ -274,7 +270,7 @@ function saveCategory() {
                 <!-- Category pill -->
                 <Badge variant="outline" class="text-xs flex items-center gap-1 ml-1">
                   <Tag class="w-3 h-3" />
-                  {{ item.category_name ?? 'Unknown' }}
+                  {{ categoryForItem(item)?.name ?? 'Unknown' }}
                 </Badge>
               </div>
 
@@ -318,34 +314,37 @@ function saveCategory() {
             <Input v-model="editForm.description" placeholder="Short description" />
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <div class="space-y-1.5">
-              <Label>Price (KES)</Label>
-              <Input
-                v-model="editForm.price"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-              />
-            </div>
+          <div class="space-y-1.5">
+            <Label>Price (KES)</Label>
+            <Input
+              v-model="editForm.price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+            />
+          </div>
 
-            <div class="space-y-1.5">
-              <Label>Category</Label>
-
-              <Select
-                :model-value="editForm.categoryId"
-                @update:model-value="editForm.categoryId = $event"
+          <div class="space-y-1.5">
+            <Label>Category</Label>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="cat in menuStore.categories"
+                :key="cat.id"
+                type="button"
+                :class="
+                  cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                    editForm.categoryId === cat.id
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                  )
+                "
+                @click="editForm.categoryId = cat.id"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select…" />
-                </SelectTrigger>
-                <SelectContent class="pointer-events-auto">
-                  <SelectItem v-for="cat in menuStore.categories" :key="cat.id" :value="cat.id">
-                    {{ cat.icon }} {{ cat.name }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                <span>{{ cat.icon }}</span>
+                {{ cat.name }}
+              </button>
             </div>
           </div>
 

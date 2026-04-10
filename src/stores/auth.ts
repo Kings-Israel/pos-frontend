@@ -52,7 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value   = null
 
     try {
-      const data = await api.post<LoginResponse>('/auth/login', { email, password })
+      const data = await api.post<LoginResponse>('/auth/login/', { email, password })
       setToken(data.token)
       user.value           = data.user
       sessionChecked.value = true
@@ -68,7 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout(): Promise<void> {
     loading.value = true
     try {
-      await api.post('/auth/logout')
+      await api.post('/auth/logout/')
     } catch {
       // Ignore logout errors — clear local state regardless.
     } finally {

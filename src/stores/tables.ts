@@ -84,6 +84,52 @@ export const useTablesStore = defineStore('tables', () => {
     }
   }
 
+  async function createTable(data: {
+    number: number
+    capacity: number
+    section: string
+  }): Promise<void> {
+    const response = await api.post<{ table: Table }>('/tables', data)
+    tables.value.push(response.table)
+  }
+
+  async function updateTable(
+    id: string,
+    data: { number?: number; capacity?: number; section?: string },
+  ): Promise<void> {
+    const idx = tables.value.findIndex((t) => t.id === id)
+    if (idx === -1) return
+
+    const prev: Table = { ...tables.value[idx]! }
+
+    // Optimistic update
+    tables.value[idx] = { ...prev, ...data }
+
+    try {
+      const response = await api.put<{ table: Table }>(`/tables/${id}`, data)
+      tables.value[idx] = response.table
+    } catch (err) {
+      tables.value[idx] = prev
+      error.value = err instanceof Error ? err.message : 'Failed to update table.'
+      throw err
+    }
+  }
+
+  async function deleteTable(id: string): Promise<void> {
+    const prev = [...tables.value]
+
+    // Optimistic remove
+    tables.value = tables.value.filter((t) => t.id !== id)
+
+    try {
+      await api.delete(`/tables/${id}`)
+    } catch (err) {
+      tables.value = prev
+      error.value = err instanceof Error ? err.message : 'Failed to delete table.'
+      throw err
+    }
+  }
+
   async function assignOrder(tableId: string, orderId: string): Promise<void> {
     const table = tables.value.find((t) => t.id === tableId)
     if (!table) return
@@ -126,6 +172,9 @@ export const useTablesStore = defineStore('tables', () => {
     occupiedTables,
     // Actions
     fetchTables,
+    createTable,
+    updateTable,
+    deleteTable,
     updateStatus,
     assignOrder,
     getTableById,
